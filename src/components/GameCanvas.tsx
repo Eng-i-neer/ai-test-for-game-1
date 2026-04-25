@@ -87,12 +87,10 @@ const GameCanvas: React.FC = () => {
       if (e.button === 0) {
         const existingNode = getNodeAt(position);
         
-        if (existingNode && !selectedNodeType) {
+        if (existingNode) {
           rotateNode(position);
         } else if (selectedNodeType === NodeType.Generator || selectedNodeType === NodeType.Belt) {
-          if (!existingNode) {
-            placeNode(position);
-          }
+          placeNode(position);
         }
       }
     },
