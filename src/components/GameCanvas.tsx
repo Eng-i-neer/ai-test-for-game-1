@@ -7,6 +7,7 @@ import {
   drawGrid,
   drawNode,
   drawHoverCell,
+  drawDataInTransit,
   CELL_SIZE,
 } from '../utils/canvasUtils';
 import { Position, NodeType } from '../types';
@@ -23,10 +24,12 @@ const GameCanvas: React.FC = () => {
     removeNode,
     rotateNode,
     getNodeAt,
-    tickCount,
+    dataInTransit,
   } = useGameStore();
 
   const { width, height } = getCanvasSize(gridSize);
+  const animationFrameRef = useRef<number>(0);
+  const isRenderingRef = useRef(false);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -42,6 +45,10 @@ const GameCanvas: React.FC = () => {
       drawNode(ctx, node, CELL_SIZE);
     });
 
+    dataInTransit.forEach((transit) => {
+      drawDataInTransit(ctx, transit, CELL_SIZE);
+    });
+
     if (hoverPosition) {
       const existingNode = getNodeAt(hoverPosition);
       
@@ -52,11 +59,28 @@ const GameCanvas: React.FC = () => {
         drawHoverCell(ctx, hoverPosition, CELL_SIZE, true);
       }
     }
-  }, [gridSize, nodes, hoverPosition, selectedNodeType, getNodeAt, width, height]);
+  }, [gridSize, nodes, dataInTransit, hoverPosition, selectedNodeType, getNodeAt, width, height]);
+
+  const renderLoop = useCallback(() => {
+    render();
+    if (isRenderingRef.current) {
+      animationFrameRef.current = requestAnimationFrame(renderLoop);
+    }
+  }, [render]);
 
   useEffect(() => {
-    render();
-  }, [render, tickCount]);
+    if (isRenderingRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    
+    isRenderingRef.current = true;
+    animationFrameRef.current = requestAnimationFrame(renderLoop);
+
+    return () => {
+      isRenderingRef.current = false;
+      cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [renderLoop]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {

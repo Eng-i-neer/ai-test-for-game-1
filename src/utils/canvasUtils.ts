@@ -1,4 +1,4 @@
-import { Position, Node, NodeType, Direction } from '../types';
+import { Position, Node, NodeType, Direction, DataInTransit } from '../types';
 
 export const CELL_SIZE = 60;
 export const PADDING = 2;
@@ -200,4 +200,35 @@ export const clearCanvas = (
 ): void => {
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, width, height);
+};
+
+export const drawDataInTransit = (
+  ctx: CanvasRenderingContext2D,
+  transit: DataInTransit,
+  cellSize: number = CELL_SIZE
+): void => {
+  ctx.save();
+  
+  const fromX = transit.fromPosition.x * cellSize + cellSize / 2;
+  const fromY = transit.fromPosition.y * cellSize + cellSize / 2;
+  const toX = transit.toPosition.x * cellSize + cellSize / 2;
+  const toY = transit.toPosition.y * cellSize + cellSize / 2;
+  
+  const currentX = fromX + (toX - fromX) * transit.progress;
+  const currentY = fromY + (toY - fromY) * transit.progress;
+  
+  const dotSize = 10;
+  
+  ctx.beginPath();
+  ctx.arc(currentX, currentY, dotSize / 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#ff5722';
+  ctx.fill();
+  
+  ctx.beginPath();
+  ctx.arc(currentX, currentY, dotSize / 2 + 2, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 87, 34, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  ctx.restore();
 };

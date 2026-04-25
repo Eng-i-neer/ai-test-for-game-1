@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Node, NodeType, Position, Direction } from '../types';
+import { Node, NodeType, Position, Direction, DataInTransit } from '../types';
 import { GridSystem } from '../game/grid/gridSystem';
 import { createNode } from '../game/nodes/nodeFactory';
 
@@ -11,6 +11,8 @@ interface GameState {
   selectedNodeType: NodeType | null;
   tickRate: number;
   gridSystem: GridSystem | null;
+  dataInTransit: DataInTransit[];
+  animationTime: number;
   
   initializeGame: () => void;
   startGame: () => void;
@@ -27,6 +29,7 @@ interface GameState {
   
   updateAllNodes: () => void;
   transferData: () => void;
+  updateAnimation: (deltaTime: number) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -37,6 +40,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedNodeType: null,
   tickRate: 60,
   gridSystem: null,
+  dataInTransit: [],
+  animationTime: 0,
 
   initializeGame: () => {
     const gridSystem = new GridSystem(10);
@@ -45,6 +50,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       nodes: new Map(),
       tickCount: 0,
       isRunning: false,
+      dataInTransit: [],
+      animationTime: 0,
     });
   },
 
@@ -65,6 +72,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       nodes: new Map(),
       tickCount: 0,
       isRunning: false,
+      dataInTransit: [],
+      animationTime: 0,
     });
   },
 
@@ -171,19 +180,110 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   transferData: () => {
-    const { gridSystem } = get();
+    const { gridSystem, tickCount, dataInTransit } = get();
     
     if (!gridSystem) {
       return;
     }
 
-    gridSystem.transferData();
+    const nodesArray = Array.from(gridSystem.getNodes().values());
     
+    const sortedNodes = nodesArray.sort((a, b) => {
+      if (a.position.x !== b.position.x) {
+        return a.position.x - b.position.x;
+      }
+      return a.position.y - b.position.y;
+    });
+
+    const newDataInTransit: DataInTransit[] = [...dataInTransit];
+
+    for (const node of sortedNodes) {
+      if (node.dataQueue.length === 0) {
+        continue;
+      }
+
+      const nextNode = gridSystem.getNeighborNode(node.position, node.outputDirection);
+      if (!nextNode) {
+        continue;
+      }
+
+      if (nextNode.type === NodeType.Generator) {
+        continue;
+      }
+
+      const targetQueueHasSpace = 
+        nextNode.dataQueue.length + nextNode.incomingData.length < nextNode.maxQueueSize;
+      
+      if (targetQueueHasSpace) {
+        const data = node.dataQueue.shift();
+        if (data) {
+          const transit: DataInTransit = {
+            data,
+            fromPosition: { ...node.position },
+            toPosition: { ...nextNode.position },
+            direction: node.outputDirection,
+            progress: 0,
+            tickCreated: tickCount,
+          };
+          newDataInTransit.push(transit);
+        }
+      }
+    }
+
     const updatedNodes = new Map<string, Node>();
     gridSystem.getNodes().forEach((node, id) => {
       updatedNodes.set(id, node);
     });
     
-    set({ nodes: updatedNodes });
+    set({ 
+      nodes: updatedNodes,
+      dataInTransit: newDataInTransit,
+    });
+  },
+
+  updateAnimation: (deltaTime: number) => {
+    const { dataInTransit, gridSystem } = get();
+    
+    if (dataInTransit.length === 0) {
+      return;
+    }
+
+    const animationDuration = 500;
+    const updatedTransit: DataInTransit[] = [];
+    const completedTransits: DataInTransit[] = [];
+
+    for (const transit of dataInTransit) {
+      const newProgress = transit.progress + (deltaTime / animationDuration);
+      
+      if (newProgress >= 1) {
+        completedTransits.push(transit);
+      } else {
+        updatedTransit.push({
+          ...transit,
+          progress: newProgress,
+        });
+      }
+    }
+
+    if (completedTransits.length > 0 && gridSystem) {
+      for (const transit of completedTransits) {
+        const targetNode = gridSystem.getNodeAt(transit.toPosition);
+        if (targetNode) {
+          targetNode.incomingData.push(transit.data);
+        }
+      }
+
+      const updatedNodes = new Map<string, Node>();
+      gridSystem.getNodes().forEach((node, id) => {
+        updatedNodes.set(id, node);
+      });
+      
+      set({ 
+        nodes: updatedNodes,
+        dataInTransit: updatedTransit,
+      });
+    } else {
+      set({ dataInTransit: updatedTransit });
+    }
   },
 }));

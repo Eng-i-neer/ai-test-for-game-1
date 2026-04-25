@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import ControlPanel from './components/ControlPanel';
 import { useGameStore } from './store/useGameStore';
@@ -11,12 +11,18 @@ function App() {
     incrementTick,
     updateAllNodes,
     transferData,
+    updateAnimation,
   } = useGameStore();
 
   const isRunningRef = useRef(isRunning);
   const incrementTickRef = useRef(incrementTick);
   const updateAllNodesRef = useRef(updateAllNodes);
   const transferDataRef = useRef(transferData);
+  const updateAnimationRef = useRef(updateAnimation);
+  
+  const lastFrameTimeRef = useRef<number>(0);
+  const animationFrameRef = useRef<number>(0);
+  const isAnimatingRef = useRef(false);
 
   useEffect(() => {
     isRunningRef.current = isRunning;
@@ -33,6 +39,42 @@ function App() {
   useEffect(() => {
     transferDataRef.current = transferData;
   }, [transferData]);
+
+  useEffect(() => {
+    updateAnimationRef.current = updateAnimation;
+  }, [updateAnimation]);
+
+  const animationLoop = useCallback((currentTime: number) => {
+    if (lastFrameTimeRef.current === 0) {
+      lastFrameTimeRef.current = currentTime;
+    }
+
+    const deltaTime = currentTime - lastFrameTimeRef.current;
+    lastFrameTimeRef.current = currentTime;
+
+    if (isRunningRef.current) {
+      updateAnimationRef.current(deltaTime);
+    }
+
+    if (isAnimatingRef.current) {
+      animationFrameRef.current = requestAnimationFrame(animationLoop);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAnimatingRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    lastFrameTimeRef.current = 0;
+    isAnimatingRef.current = true;
+    animationFrameRef.current = requestAnimationFrame(animationLoop);
+
+    return () => {
+      isAnimatingRef.current = false;
+      cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [animationLoop]);
 
   useEffect(() => {
     initializeGame();

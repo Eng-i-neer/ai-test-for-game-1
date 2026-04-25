@@ -21,6 +21,15 @@ export type Data = {
   value?: unknown;
 };
 
+export type DataInTransit = {
+  data: Data;
+  fromPosition: Position;
+  toPosition: Position;
+  direction: Direction;
+  progress: number;
+  tickCreated: number;
+};
+
 export type Node = {
   id: string;
   type: NodeType;
