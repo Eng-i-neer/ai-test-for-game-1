@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import GameCanvas from './components/GameCanvas';
 import ControlPanel from './components/ControlPanel';
 import { useGameStore } from './store/useGameStore';
@@ -13,14 +13,35 @@ function App() {
     transferData,
   } = useGameStore();
 
+  const isRunningRef = useRef(isRunning);
+  const incrementTickRef = useRef(incrementTick);
+  const updateAllNodesRef = useRef(updateAllNodes);
+  const transferDataRef = useRef(transferData);
+
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
+
+  useEffect(() => {
+    incrementTickRef.current = incrementTick;
+  }, [incrementTick]);
+
+  useEffect(() => {
+    updateAllNodesRef.current = updateAllNodes;
+  }, [updateAllNodes]);
+
+  useEffect(() => {
+    transferDataRef.current = transferData;
+  }, [transferData]);
+
   useEffect(() => {
     initializeGame();
 
     const unsubscribe = globalTickSystem.subscribe((_tickCount) => {
-      if (isRunning) {
-        incrementTick();
-        updateAllNodes();
-        transferData();
+      if (isRunningRef.current) {
+        incrementTickRef.current();
+        updateAllNodesRef.current();
+        transferDataRef.current();
       }
     });
 
