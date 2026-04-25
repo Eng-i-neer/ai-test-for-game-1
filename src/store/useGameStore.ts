@@ -12,7 +12,6 @@ interface GameState {
   tickRate: number;
   gridSystem: GridSystem | null;
   dataInTransit: DataInTransit[];
-  animationTime: number;
   
   initializeGame: () => void;
   startGame: () => void;
@@ -29,6 +28,7 @@ interface GameState {
   
   updateAllNodes: () => void;
   transferData: () => void;
+  addDataInTransit: (transit: DataInTransit) => void;
   updateAnimation: (deltaTime: number) => void;
 }
 
@@ -41,7 +41,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   tickRate: 60,
   gridSystem: null,
   dataInTransit: [],
-  animationTime: 0,
 
   initializeGame: () => {
     const gridSystem = new GridSystem(10);
@@ -51,7 +50,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       tickCount: 0,
       isRunning: false,
       dataInTransit: [],
-      animationTime: 0,
     });
   },
 
@@ -73,7 +71,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       tickCount: 0,
       isRunning: false,
       dataInTransit: [],
-      animationTime: 0,
     });
   },
 
@@ -180,7 +177,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   transferData: () => {
-    const { gridSystem, tickCount, dataInTransit } = get();
+    const { gridSystem, tickCount } = get();
     
     if (!gridSystem) {
       return;
@@ -195,7 +192,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return a.position.y - b.position.y;
     });
 
-    const newDataInTransit: DataInTransit[] = [...dataInTransit];
+    const newTransits: DataInTransit[] = [];
 
     for (const node of sortedNodes) {
       if (node.dataQueue.length === 0) {
@@ -217,6 +214,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (targetQueueHasSpace) {
         const data = node.dataQueue.shift();
         if (data) {
+          nextNode.incomingData.push(data);
+          
           const transit: DataInTransit = {
             data,
             fromPosition: { ...node.position },
@@ -225,9 +224,15 @@ export const useGameStore = create<GameState>((set, get) => ({
             progress: 0,
             tickCreated: tickCount,
           };
-          newDataInTransit.push(transit);
+          newTransits.push(transit);
         }
       }
+    }
+
+    if (newTransits.length > 0) {
+      set((state) => ({
+        dataInTransit: [...state.dataInTransit, ...newTransits],
+      }));
     }
 
     const updatedNodes = new Map<string, Node>();
@@ -235,14 +240,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       updatedNodes.set(id, node);
     });
     
-    set({ 
-      nodes: updatedNodes,
-      dataInTransit: newDataInTransit,
-    });
+    set({ nodes: updatedNodes });
+  },
+
+  addDataInTransit: (transit: DataInTransit) => {
+    set((state) => ({
+      dataInTransit: [...state.dataInTransit, transit],
+    }));
   },
 
   updateAnimation: (deltaTime: number) => {
-    const { dataInTransit, gridSystem } = get();
+    const { dataInTransit } = get();
     
     if (dataInTransit.length === 0) {
       return;
@@ -250,14 +258,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const animationDuration = 500;
     const updatedTransit: DataInTransit[] = [];
-    const completedTransits: DataInTransit[] = [];
 
     for (const transit of dataInTransit) {
       const newProgress = transit.progress + (deltaTime / animationDuration);
       
-      if (newProgress >= 1) {
-        completedTransits.push(transit);
-      } else {
+      if (newProgress < 1) {
         updatedTransit.push({
           ...transit,
           progress: newProgress,
@@ -265,24 +270,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
-    if (completedTransits.length > 0 && gridSystem) {
-      for (const transit of completedTransits) {
-        const targetNode = gridSystem.getNodeAt(transit.toPosition);
-        if (targetNode) {
-          targetNode.incomingData.push(transit.data);
-        }
-      }
-
-      const updatedNodes = new Map<string, Node>();
-      gridSystem.getNodes().forEach((node, id) => {
-        updatedNodes.set(id, node);
-      });
-      
-      set({ 
-        nodes: updatedNodes,
-        dataInTransit: updatedTransit,
-      });
-    } else {
+    if (updatedTransit.length !== dataInTransit.length) {
       set({ dataInTransit: updatedTransit });
     }
   },
