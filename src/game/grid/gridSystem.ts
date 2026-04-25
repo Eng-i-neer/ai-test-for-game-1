@@ -1,4 +1,4 @@
-import { Node, Position, Direction, directionOffset } from '../../types';
+import { Node, Position, Direction, directionOffset, oppositeDirection, NodeType } from '../../types';
 
 export class GridSystem {
   private gridSize: number;
@@ -93,14 +93,81 @@ export class GridSystem {
     return this.removeNode(node.id);
   }
 
+  public rotateNodeAt(position: Position): boolean {
+    const node = this.getNodeAt(position);
+    if (!node) {
+      return false;
+    }
+    node.rotate();
+    return true;
+  }
+
+  private canReceiveData(fromNode: Node, toNode: Node): boolean {
+    if (toNode.type === NodeType.Generator) {
+      return false;
+    }
+
+    if (toNode.dataQueue.length + toNode.incomingData.length >= toNode.maxQueueSize) {
+      return false;
+    }
+
+    if (toNode.inputDirection === null) {
+      return true;
+    }
+
+    const expectedInputDirection = oppositeDirection[fromNode.outputDirection];
+    
+    return toNode.inputDirection === expectedInputDirection;
+  }
+
   public updateAllNodes(tickCount: number): void {
+    const getNeighborNode = (node: Node) => (direction: Direction): Node | null => {
+      return this.getNeighborNode(node.position, direction);
+    };
+
     this.nodes.forEach((node) => {
-      const getNeighborNode = (direction: Direction): Node | null => {
-        return this.getNeighborNode(node.position, direction);
-      };
-      
-      node.update(tickCount, getNeighborNode);
+      node.update(tickCount, getNeighborNode(node));
     });
+  }
+
+  public transferData(): void {
+    const nodesArray = Array.from(this.nodes.values());
+    
+    const sortedNodes = nodesArray.sort((a, b) => {
+      if (a.position.x !== b.position.x) {
+        return a.position.x - b.position.x;
+      }
+      return a.position.y - b.position.y;
+    });
+
+    const transfers: { from: Node; to: Node; data: Node['dataQueue'] }[] = [];
+
+    for (const node of sortedNodes) {
+      if (node.dataQueue.length === 0) {
+        continue;
+      }
+
+      const nextNode = this.getNeighborNode(node.position, node.outputDirection);
+      if (!nextNode) {
+        continue;
+      }
+
+      if (this.canReceiveData(node, nextNode)) {
+        const dataToTransfer = node.dataQueue[0];
+        transfers.push({
+          from: node,
+          to: nextNode,
+          data: [dataToTransfer],
+        });
+      }
+    }
+
+    for (const transfer of transfers) {
+      const data = transfer.from.dataQueue.shift();
+      if (data) {
+        transfer.to.incomingData.push(data);
+      }
+    }
   }
 
   public clear(): void {

@@ -21,10 +21,12 @@ interface GameState {
   selectNodeType: (type: NodeType | null) => void;
   placeNode: (position: Position) => void;
   removeNode: (position: Position) => void;
+  rotateNode: (position: Position) => void;
   getNodeAt: (position: Position) => Node | null;
   getNeighborNode: (fromPosition: Position, direction: Direction) => Node | null;
   
   updateAllNodes: () => void;
+  transferData: () => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -118,6 +120,23 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
+  rotateNode: (position: Position) => {
+    const { gridSystem } = get();
+    
+    if (!gridSystem) {
+      return;
+    }
+
+    const success = gridSystem.rotateNodeAt(position);
+    if (success) {
+      const updatedNodes = new Map<string, Node>();
+      gridSystem.getNodes().forEach((node, id) => {
+        updatedNodes.set(id, node);
+      });
+      set({ nodes: updatedNodes });
+    }
+  },
+
   getNodeAt: (position: Position) => {
     const { gridSystem } = get();
     if (!gridSystem) {
@@ -142,6 +161,23 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     gridSystem.updateAllNodes(tickCount);
+    
+    const updatedNodes = new Map<string, Node>();
+    gridSystem.getNodes().forEach((node, id) => {
+      updatedNodes.set(id, node);
+    });
+    
+    set({ nodes: updatedNodes });
+  },
+
+  transferData: () => {
+    const { gridSystem } = get();
+    
+    if (!gridSystem) {
+      return;
+    }
+
+    gridSystem.transferData();
     
     const updatedNodes = new Map<string, Node>();
     gridSystem.getNodes().forEach((node, id) => {

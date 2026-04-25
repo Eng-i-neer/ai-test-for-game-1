@@ -21,6 +21,7 @@ const GameCanvas: React.FC = () => {
     selectedNodeType,
     placeNode,
     removeNode,
+    rotateNode,
     getNodeAt,
     tickCount,
   } = useGameStore();
@@ -41,10 +42,15 @@ const GameCanvas: React.FC = () => {
       drawNode(ctx, node, CELL_SIZE);
     });
 
-    if (hoverPosition && selectedNodeType) {
+    if (hoverPosition) {
       const existingNode = getNodeAt(hoverPosition);
-      const isValid = !existingNode;
-      drawHoverCell(ctx, hoverPosition, CELL_SIZE, isValid);
+      
+      if (selectedNodeType) {
+        const isValid = !existingNode;
+        drawHoverCell(ctx, hoverPosition, CELL_SIZE, isValid);
+      } else if (existingNode) {
+        drawHoverCell(ctx, hoverPosition, CELL_SIZE, true);
+      }
     }
   }, [gridSize, nodes, hoverPosition, selectedNodeType, getNodeAt, width, height]);
 
@@ -79,12 +85,18 @@ const GameCanvas: React.FC = () => {
       if (!position) return;
 
       if (e.button === 0) {
-        if (selectedNodeType === NodeType.Generator || selectedNodeType === NodeType.Belt) {
-          placeNode(position);
+        const existingNode = getNodeAt(position);
+        
+        if (existingNode && !selectedNodeType) {
+          rotateNode(position);
+        } else if (selectedNodeType === NodeType.Generator || selectedNodeType === NodeType.Belt) {
+          if (!existingNode) {
+            placeNode(position);
+          }
         }
       }
     },
-    [gridSize, selectedNodeType, placeNode]
+    [gridSize, selectedNodeType, placeNode, rotateNode, getNodeAt]
   );
 
   const handleContextMenu = useCallback(
@@ -104,6 +116,19 @@ const GameCanvas: React.FC = () => {
     [gridSize, removeNode]
   );
 
+  const getCursorStyle = (): string => {
+    if (selectedNodeType) {
+      return 'crosshair';
+    }
+    if (hoverPosition) {
+      const existingNode = getNodeAt(hoverPosition);
+      if (existingNode) {
+        return 'pointer';
+      }
+    }
+    return 'default';
+  };
+
   return (
     <canvas
       ref={canvasRef}
@@ -112,7 +137,7 @@ const GameCanvas: React.FC = () => {
       style={{
         border: '2px solid #3a3a5a',
         borderRadius: '4px',
-        cursor: selectedNodeType ? 'crosshair' : 'default',
+        cursor: getCursorStyle(),
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

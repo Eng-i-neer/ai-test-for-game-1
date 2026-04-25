@@ -10,21 +10,42 @@ const createData = (tickCount: number): Data => ({
   createdAt: tickCount,
 });
 
+const rotateDirectionClockwise = (direction: Direction): Direction => {
+  const rotationOrder: Direction[] = [Direction.Up, Direction.Right, Direction.Down, Direction.Left];
+  const currentIndex = rotationOrder.indexOf(direction);
+  return rotationOrder[(currentIndex + 1) % 4];
+};
+
 export const createGeneratorNode = (
   position: Position,
   outputDirection: Direction = Direction.Right,
   generationInterval: number = 1,
   maxQueueSize: number = 5
 ): Node => {
+  let currentOutputDirection = outputDirection;
+  
   const node: Node = {
     id: generateId(),
     type: NodeType.Generator,
     position,
     inputDirection: null,
-    outputDirection,
+    get outputDirection() {
+      return currentOutputDirection;
+    },
+    set outputDirection(dir: Direction) {
+      currentOutputDirection = dir;
+    },
     dataQueue: [],
+    incomingData: [],
     maxQueueSize,
-    update: (tickCount: number, getNeighborNode: (dir: Direction) => Node | null) => {
+    
+    update: (tickCount: number, _getNeighborNode: (dir: Direction) => Node | null) => {
+      if (node.incomingData.length > 0) {
+        const spaceInDataQueue = node.maxQueueSize - node.dataQueue.length;
+        const dataToMove = node.incomingData.splice(0, spaceInDataQueue);
+        node.dataQueue.push(...dataToMove);
+      }
+      
       if (tickCount % generationInterval !== 0) {
         return;
       }
@@ -34,22 +55,11 @@ export const createGeneratorNode = (
       }
 
       const newData = createData(tickCount);
-      const neighbor = getNeighborNode(node.outputDirection);
-
-      if (neighbor && neighbor.type === NodeType.Belt) {
-        const canReceive = 
-          neighbor.inputDirection === node.outputDirection || 
-          neighbor.inputDirection === null;
-        
-        if (canReceive && neighbor.dataQueue.length < neighbor.maxQueueSize) {
-          neighbor.dataQueue.push(newData);
-          return;
-        }
-      }
-
-      if (node.dataQueue.length < node.maxQueueSize) {
-        node.dataQueue.push(newData);
-      }
+      node.dataQueue.push(newData);
+    },
+    
+    rotate: () => {
+      currentOutputDirection = rotateDirectionClockwise(currentOutputDirection);
     },
   };
 
@@ -62,35 +72,42 @@ export const createBeltNode = (
   outputDirection: Direction = Direction.Right,
   maxQueueSize: number = 5
 ): Node => {
+  let currentInputDirection = inputDirection;
+  let currentOutputDirection = outputDirection;
+  
   const node: Node = {
     id: generateId(),
     type: NodeType.Belt,
     position,
-    inputDirection,
-    outputDirection,
+    get inputDirection() {
+      return currentInputDirection;
+    },
+    set inputDirection(dir: Direction | null) {
+      if (dir !== null) {
+        currentInputDirection = dir;
+      }
+    },
+    get outputDirection() {
+      return currentOutputDirection;
+    },
+    set outputDirection(dir: Direction) {
+      currentOutputDirection = dir;
+    },
     dataQueue: [],
+    incomingData: [],
     maxQueueSize,
-    update: (_tickCount: number, getNeighborNode: (dir: Direction) => Node | null) => {
-      if (node.dataQueue.length === 0) {
-        return;
+    
+    update: (_tickCount: number, _getNeighborNode: (dir: Direction) => Node | null) => {
+      if (node.incomingData.length > 0) {
+        const spaceInDataQueue = node.maxQueueSize - node.dataQueue.length;
+        const dataToMove = node.incomingData.splice(0, spaceInDataQueue);
+        node.dataQueue.push(...dataToMove);
       }
-
-      const nextNode = getNeighborNode(node.outputDirection);
-
-      if (nextNode && nextNode.type === NodeType.Belt) {
-        const canReceive = 
-          nextNode.inputDirection === node.outputDirection || 
-          nextNode.inputDirection === null;
-        
-        if (canReceive && nextNode.dataQueue.length < nextNode.maxQueueSize) {
-          nextNode.dataQueue.push(node.dataQueue.shift()!);
-          return;
-        }
-      }
-
-      if (nextNode && nextNode.type === NodeType.Generator) {
-        return;
-      }
+    },
+    
+    rotate: () => {
+      currentInputDirection = rotateDirectionClockwise(currentInputDirection);
+      currentOutputDirection = rotateDirectionClockwise(currentOutputDirection);
     },
   };
 

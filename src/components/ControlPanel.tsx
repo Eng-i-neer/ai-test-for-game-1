@@ -116,7 +116,8 @@ const ControlPanel: React.FC = () => {
       <div style={{ borderTop: '1px solid #3a3a5a', paddingTop: '16px' }}>
         <h3 style={{ margin: '0 0 12px 0', color: '#fff', fontSize: '16px' }}>操作说明</h3>
         <div style={{ fontSize: '12px', color: '#aaa', lineHeight: '1.6' }}>
-          <div>• 左键点击: 放置选中的节点</div>
+          <div>• 先选择节点类型，再左键点击放置</div>
+          <div>• 取消选中后，左键点击节点可旋转方向</div>
           <div>• 右键点击: 删除节点</div>
           <div>• 点击按钮切换选中状态</div>
         </div>

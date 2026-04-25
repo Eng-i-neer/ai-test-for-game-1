@@ -10,6 +10,7 @@ function App() {
     isRunning,
     incrementTick,
     updateAllNodes,
+    transferData,
   } = useGameStore();
 
   useEffect(() => {
@@ -19,6 +20,7 @@ function App() {
       if (isRunning) {
         incrementTick();
         updateAllNodes();
+        transferData();
       }
     });
 
@@ -97,7 +99,7 @@ function App() {
             fontSize: '12px',
           }}
         >
-          <p>提示：先放置 Generator，再用 Belt 连接，然后点击开始观察数据流动</p>
+          <p>提示：先选择 Generator/Belt 放置节点 → 取消选中后点击节点可旋转方向 → 点击开始观察数据流动</p>
         </footer>
       </div>
     </div>

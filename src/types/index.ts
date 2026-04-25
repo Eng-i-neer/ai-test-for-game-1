@@ -28,8 +28,10 @@ export type Node = {
   inputDirection: Direction | null;
   outputDirection: Direction;
   dataQueue: Data[];
+  incomingData: Data[];
   maxQueueSize: number;
   update(tickCount: number, getNeighborNode: (dir: Direction) => Node | null): void;
+  rotate(): void;
 };
 
 export type GameState = {
