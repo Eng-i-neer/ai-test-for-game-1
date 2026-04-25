@@ -1,4 +1,4 @@
-import { Node, Position, Direction, directionOffset, oppositeDirection, NodeType } from '../../types';
+import { Node, NodeType, Position, Direction, directionOffset } from '../../types';
 
 export class GridSystem {
   private gridSize: number;
@@ -102,24 +102,6 @@ export class GridSystem {
     return true;
   }
 
-  private canReceiveData(fromNode: Node, toNode: Node): boolean {
-    if (toNode.type === NodeType.Generator) {
-      return false;
-    }
-
-    if (toNode.dataQueue.length + toNode.incomingData.length >= toNode.maxQueueSize) {
-      return false;
-    }
-
-    if (toNode.inputDirection === null) {
-      return true;
-    }
-
-    const expectedInputDirection = oppositeDirection[fromNode.outputDirection];
-    
-    return toNode.inputDirection === expectedInputDirection;
-  }
-
   public updateAllNodes(tickCount: number): void {
     const getNeighborNode = (node: Node) => (direction: Direction): Node | null => {
       return this.getNeighborNode(node.position, direction);
@@ -140,7 +122,7 @@ export class GridSystem {
       return a.position.y - b.position.y;
     });
 
-    const transfers: { from: Node; to: Node; data: Node['dataQueue'] }[] = [];
+    const transfers: { from: Node; to: Node; dataIndex: number }[] = [];
 
     for (const node of sortedNodes) {
       if (node.dataQueue.length === 0) {
@@ -152,20 +134,28 @@ export class GridSystem {
         continue;
       }
 
-      if (this.canReceiveData(node, nextNode)) {
-        const dataToTransfer = node.dataQueue[0];
+      if (nextNode.type === NodeType.Generator) {
+        continue;
+      }
+
+      const targetQueueHasSpace = 
+        nextNode.dataQueue.length + nextNode.incomingData.length < nextNode.maxQueueSize;
+      
+      if (targetQueueHasSpace) {
         transfers.push({
           from: node,
           to: nextNode,
-          data: [dataToTransfer],
+          dataIndex: 0,
         });
       }
     }
 
     for (const transfer of transfers) {
-      const data = transfer.from.dataQueue.shift();
-      if (data) {
-        transfer.to.incomingData.push(data);
+      if (transfer.from.dataQueue.length > 0) {
+        const data = transfer.from.dataQueue.shift();
+        if (data) {
+          transfer.to.incomingData.push(data);
+        }
       }
     }
   }

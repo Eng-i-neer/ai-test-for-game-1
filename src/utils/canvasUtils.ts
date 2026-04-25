@@ -89,8 +89,9 @@ export const drawNode = (
     drawDirectionArrow(ctx, x, y, cellSize, node.outputDirection, '#ff9800');
   }
 
-  if (node.dataQueue.length > 0) {
-    drawDataIndicator(ctx, x, y, cellSize, node.dataQueue.length);
+  const totalData = node.dataQueue.length + node.incomingData.length;
+  if (totalData > 0) {
+    drawDataIndicator(ctx, x, y, cellSize, totalData);
   }
 
   ctx.restore();
